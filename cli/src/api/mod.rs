@@ -62,7 +62,7 @@ enum APIResult<T> {
 }
 
 impl PhylumApi {
-    async fn get<T: serde::de::DeserializeOwned>(&self, path: String) -> Result<T> {
+    pub async fn get<T: serde::de::DeserializeOwned>(&self, path: String) -> Result<T> {
         let body = self.client.get(path).send().await?.text().await?;
 
         let api_obj = serde_json::from_str::<APIResult<T>>(&body)
@@ -73,7 +73,22 @@ impl PhylumApi {
         }
     }
 
-    async fn put<T: serde::de::DeserializeOwned, S: serde::Serialize>(
+    pub async fn post<T: serde::de::DeserializeOwned, S: serde::Serialize>(
+        &self,
+        path: String,
+        s: S,
+    ) -> Result<T> {
+        let body = self.client.post(path).json(&s).send().await?.text().await?;
+
+        let api_obj = serde_json::from_str::<APIResult<T>>(&body)
+            .map_err(|e| PhylumApiError::Other(e.into()))?;
+        match api_obj {
+            APIResult::Ok(api_obj) => Ok(api_obj),
+            APIResult::Err { msg } => Err(PhylumApiError::Other(anyhow::anyhow!(msg))),
+        }
+    }
+
+    pub async fn put<T: serde::de::DeserializeOwned, S: serde::Serialize>(
         &self,
         path: String,
         s: S,
@@ -88,7 +103,7 @@ impl PhylumApi {
         }
     }
 
-    async fn delete<T: serde::de::DeserializeOwned>(&self, path: String) -> Result<T> {
+    pub async fn delete<T: serde::de::DeserializeOwned>(&self, path: String) -> Result<T> {
         let body = self.client.delete(path).send().await?.text().await?;
 
         let api_obj = serde_json::from_str::<APIResult<T>>(&body)
@@ -97,6 +112,10 @@ impl PhylumApi {
             APIResult::Ok(api_obj) => Ok(api_obj),
             APIResult::Err { msg } => Err(PhylumApiError::Other(anyhow::anyhow!(msg))),
         }
+    }
+
+    pub fn route(&self, path: &str) -> String {
+        format!("{}{}", self.api_uri, path)
     }
 }
 

@@ -189,6 +189,16 @@ fn build_grant_type_refresh_token_post_body(
     Ok(body)
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum TokenResponseOrError {
+    Response(TokenResponse),
+    Error {
+        error: String,
+        error_description: String,
+    },
+}
+
 /// Acquire tokens with the auth code
 pub async fn acquire_tokens(
     oidc_settings: &OidcServerSettings,
@@ -210,9 +220,15 @@ pub async fn acquire_tokens(
         .form(&body)
         .send()
         .await?
-        .json::<TokenResponse>()
+        .json::<TokenResponseOrError>()
         .await?;
-    Ok(response)
+
+    match response {
+        TokenResponseOrError::Response(r) => Ok(r),
+        TokenResponseOrError::Error {
+            error_description, ..
+        } => Err(anyhow::anyhow!(error_description)),
+    }
 }
 
 pub async fn refresh_tokens(
@@ -232,9 +248,15 @@ pub async fn refresh_tokens(
         .form(&body)
         .send()
         .await?
-        .json::<TokenResponse>()
+        .json::<TokenResponseOrError>()
         .await?;
-    Ok(response)
+
+    match response {
+        TokenResponseOrError::Response(r) => Ok(r),
+        TokenResponseOrError::Error {
+            error_description, ..
+        } => Err(anyhow::anyhow!(error_description)),
+    }
 }
 
 pub async fn handle_refresh_tokens(

@@ -1,0 +1,11 @@
+{
+  "name": "yarn02",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "node-gyp": "^3.8.0",
+    "recast": "~0.11.12",
+    "word-wrap": "~1.2.3"
+  }
+}
