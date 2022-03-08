@@ -36,14 +36,13 @@ pub trait PhylumApiExt {
 #[async_trait]
 impl PhylumApiExt for phylum_cli::api::PhylumApi {
     async fn remediation_yarn<'a>(&self, lockfile: &'a str, manifest: &'a str) -> Result<()> {
+        let json = serde_json::json!({
+            "lockfile": lockfile,
+            "manifest": manifest,
+        });
+
         let remediations = self
-            .post::<Remediation, _>(
-                self.route("/data/packages/remediation/yarn"),
-                serde_json::json!({
-                    "manifest": manifest,
-                    "lockfile": lockfile,
-                }),
-            )
+            .post::<Vec<Remediation>, _>(self.route("/data/packages/remediation/yarn"), json)
             .await?;
 
         println!("{:?}", remediations);

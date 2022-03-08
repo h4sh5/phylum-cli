@@ -10,6 +10,7 @@ async fn simple_request_yarn() {
 
     let config_path = get_home_settings_path().expect("Couldn't read home settings path");
     let mut config = read_configuration(&config_path).expect("Couldn't read configuration");
+    config.connection.uri = "http://localhost:8020".into();
 
     println!("{:?}", config.auth_info);
 

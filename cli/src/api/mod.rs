@@ -81,7 +81,7 @@ impl PhylumApi {
         let body = self.client.post(path).json(&s).send().await?.text().await?;
 
         let api_obj = serde_json::from_str::<APIResult<T>>(&body)
-            .map_err(|e| PhylumApiError::Other(e.into()))?;
+            .map_err(|e| PhylumApiError::Other(anyhow::format_err!("{}: {}...", e, &body[..100])))?;
         match api_obj {
             APIResult::Ok(api_obj) => Ok(api_obj),
             APIResult::Err { msg } => Err(PhylumApiError::Other(anyhow::anyhow!(msg))),
