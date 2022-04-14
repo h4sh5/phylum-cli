@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use phylum_types::types::auth::*;
 use phylum_types::types::common::*;
+use phylum_types::types::group::{CreateGroupRequest, CreateGroupResponse, ListUserGroupsResponse};
 use phylum_types::types::job::*;
 use phylum_types::types::package::*;
 use phylum_types::types::project::CreateProjectRequest;
@@ -18,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error as ThisError;
 
 mod endpoints;
+mod groups;
 
 use crate::auth::fetch_oidc_server_settings;
 use crate::auth::handle_auth_flow;
@@ -88,6 +90,25 @@ impl PhylumApi {
         if !success {
             return Err(anyhow!(body).into());
         }
+    }
+
+    async fn post<T: serde::de::DeserializeOwned, S: serde::Serialize>(
+        &self,
+        path: String,
+        s: S,
+    ) -> Result<T> {
+        let body = self.client.post(path).json(&s).send().await?.text().await?;
+
+        let api_obj = serde_json::from_str::<APIResult<T>>(&body)
+            .map_err(|e| PhylumApiError::Other(e.into()))?;
+        match api_obj {
+            APIResult::Ok(api_obj) => Ok(api_obj),
+            APIResult::Err { msg } => Err(PhylumApiError::Other(anyhow::anyhow!(msg))),
+        }
+    }
+
+    async fn delete<T: serde::de::DeserializeOwned>(&self, path: String) -> Result<T> {
+        let body = self.client.delete(path).send().await?.text().await?;
 
         let api_obj = serde_json::from_str::<APIResult<T>>(&body)
             .map_err(|e| PhylumApiError::Other(e.into()))?;
@@ -176,13 +197,13 @@ impl PhylumApi {
     }
 
     /// Create a new project
-    pub async fn create_project(&mut self, name: &str) -> Result<ProjectId> {
+    pub async fn create_project(&mut self, name: &str, group: Option<&str>) -> Result<ProjectId> {
         Ok(self
             .put::<CreateProjectResponse, _>(
                 endpoints::put_create_project(&self.api_uri),
                 CreateProjectRequest {
-                    name: name.to_string(),
-                    group_name: None,
+                    name: name.to_owned(),
+                    group_name: group.map(String::from),
                 },
             )
             .await?
@@ -279,6 +300,19 @@ impl PhylumApi {
     ) -> Result<PackageStatusExtended> {
         self.get(endpoints::get_package_status(&self.api_uri, pkg))
             .await
+    }
+
+    /// Get all groups the user is part of.
+    pub async fn get_groups_list(&mut self) -> Result<ListUserGroupsResponse> {
+        self.get(groups::list(&self.api_uri)).await
+    }
+
+    /// Get all groups the user is part of.
+    pub async fn create_group(&mut self, group_name: &str) -> Result<CreateGroupResponse> {
+        let group = CreateGroupRequest {
+            group_name: group_name.into(),
+        };
+        self.post(groups::create(&self.api_uri), group).await
     }
 }
 

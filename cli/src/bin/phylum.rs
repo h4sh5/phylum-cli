@@ -10,6 +10,7 @@ use spinners::{Spinner, Spinners};
 
 use phylum_cli::api::PhylumApi;
 use phylum_cli::commands::auth::*;
+use phylum_cli::commands::group::handle_group;
 use phylum_cli::commands::jobs::*;
 use phylum_cli::commands::packages::*;
 use phylum_cli::commands::project::handle_project;
@@ -201,6 +202,16 @@ async fn handle_commands() -> CommandResult {
         return handle_submission(&mut api, config, &matches).await;
     } else if let Some(matches) = matches.subcommand_matches("history") {
         return handle_history(&mut api, matches).await;
+    } else if let Some(matches) = matches.subcommand_matches("group") {
+        return handle_group(&mut api, matches).await;
+    } else if should_cancel {
+        if let Some(matches) = matches.subcommand_matches("cancel") {
+            let request_id = matches.value_of("request_id").unwrap().to_string();
+            let request_id = JobId::from_str(&request_id)
+                .context("Received invalid request id. Request id's should be of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")?;
+            let resp = api.cancel(&request_id).await;
+            print_response(&resp, true, None);
+        }
     }
 
     Ok(ExitCode::Ok.into())

@@ -66,7 +66,10 @@ pub fn app<'a>() -> clap::Command<'a> {
                 .subcommand(
                     Command::new("create")
                         .about("Create a new project")
-                        .arg(arg!(<name> "Name of the project"))
+                        .args(&[
+                            arg!(<name> "Name of the project"),
+                            arg!(-g --group <group_name> "Group which will be the owner of the project"),
+                        ])
                 )
                 .subcommand(
                     Command::new("list")
@@ -76,7 +79,10 @@ pub fn app<'a>() -> clap::Command<'a> {
                 .subcommand(
                     Command::new("link")
                         .about("Link a repository to a project")
-                        .arg(arg!(<name> "Name of the project"))
+                        .args(&[
+                            arg!(<name> "Name of the project"),
+                            arg!(-g --group <group_name> "Group owning the project"),
+                        ])
                 )
                 .subcommand(
                     Command::new("set-thresholds")
@@ -146,6 +152,21 @@ pub fn app<'a>() -> clap::Command<'a> {
         .subcommand(
             Command::new("version")
                 .about("Display application version")
+        )
+        .subcommand(
+            Command::new("group")
+                .about("Interact with user groups")
+                .arg(arg!(-j --json "Produce group list in json format (default: false)"))
+                .subcommand(
+                    Command::new("list")
+                        .about("List all groups the user is part of")
+                        .arg(arg!(-j --json "Produce output in json format (default: false)"))
+                )
+                .subcommand(
+                    Command::new("create")
+                        .about("Create a new group")
+                        .arg(arg!(<group_name> "Name for the new group"))
+                )
         );
 
     #[cfg(feature = "selfmanage")]
