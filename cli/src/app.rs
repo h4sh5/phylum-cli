@@ -136,6 +136,10 @@ pub fn app<'a>() -> clap::Command<'a> {
         .subcommand(
             Command::new("version")
                 .about("Display application version")
+        )
+        .subcommand(
+            Command::new("wasm")
+                .arg(arg!(<FILE> "Path to wasm extension file"))
         );
 
     #[cfg(feature = "selfmanage")]

@@ -200,12 +200,12 @@ impl PhylumApi {
     }
 
     /// Get a list of projects
-    pub async fn get_projects(&mut self) -> Result<Vec<ProjectSummaryResponse>> {
+    pub async fn get_projects(&self) -> Result<Vec<ProjectSummaryResponse>> {
         self.get(project::get_project_summary(&self.api_uri)).await
     }
 
     /// Get user settings
-    pub async fn get_user_settings(&mut self) -> Result<UserSettings> {
+    pub async fn get_user_settings(&self) -> Result<UserSettings> {
         self.get(user_settings::get_user_settings(&self.api_uri))
             .await
     }

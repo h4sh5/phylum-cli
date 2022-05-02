@@ -15,6 +15,7 @@ use phylum_cli::commands::packages::*;
 use phylum_cli::commands::project::handle_project;
 #[cfg(feature = "selfmanage")]
 use phylum_cli::commands::uninstall::*;
+use phylum_cli::commands::wasm::handle_wasm;
 use phylum_cli::commands::{CommandResult, CommandValue, ExitCode};
 use phylum_cli::config::*;
 use phylum_cli::print::*;
@@ -204,6 +205,8 @@ async fn handle_commands() -> CommandResult {
         return handle_submission(&mut api, config, &matches).await;
     } else if let Some(matches) = matches.subcommand_matches("history") {
         return handle_history(&mut api, matches).await;
+    } else if let Some(matches) = matches.subcommand_matches("wasm") {
+        return handle_wasm(api, matches).await;
     } else if should_cancel {
         if let Some(matches) = matches.subcommand_matches("cancel") {
             let request_id = matches.value_of("request_id").unwrap().to_string();

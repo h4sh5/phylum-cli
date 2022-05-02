@@ -7,6 +7,7 @@ pub mod packages;
 pub mod project;
 #[cfg(feature = "selfmanage")]
 pub mod uninstall;
+pub mod wasm;
 
 /// The possible result values of commands
 pub enum CommandValue {
