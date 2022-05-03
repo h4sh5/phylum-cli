@@ -1,0 +1,6 @@
+record project {
+  name: string,
+  id: string,
+}
+
+projects: function() -> list<project>

@@ -57,6 +57,8 @@ zeroize = "1.4.0"
 zip = "0.6.2"
 unicode-width = "0.1.9"
 wasmtime = "0.35.0"
+wasmtime-wasi = "0.35.0"
+wit-bindgen-wasmtime = { git = "https://github.com/bytecodealliance/wit-bindgen" }
 
 [dev-dependencies]
 assert_cmd = "2.0.4"

@@ -5,3 +5,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
+
+[dependencies]
+phylum_types = { git = "https://github.com/phylum-dev/phylum-types", branch = "development" }
+wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen" }
