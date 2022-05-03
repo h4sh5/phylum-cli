@@ -3430,6 +3430,7 @@ version = "0.1.0"
 source = "git+https://github.com/bytecodealliance/wit-bindgen#744d5dd574d247ba60827d6ec4056c2397ce9f04"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bitflags",
  "thiserror",
  "wasmtime",
