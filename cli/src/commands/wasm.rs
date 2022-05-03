@@ -5,9 +5,12 @@ use wasmtime_wasi::sync::WasiCtxBuilder;
 use wasmtime_wasi::WasiCtx;
 
 use crate::api::PhylumApi;
+use crate::commands::wasm::phylum::{Phylum, Project};
+use crate::commands::wasm::plugin::{Plugin, PluginData};
 use crate::commands::{CommandResult, ExitCode};
 
 wit_bindgen_wasmtime::export!({ paths: ["../phylum.wit"], async: * });
+wit_bindgen_wasmtime::import!({ paths: ["../plugin.wit"], async: * });
 
 pub async fn handle_wasm(api: PhylumApi, matches: &ArgMatches) -> CommandResult {
     let wasm = matches.value_of("FILE").unwrap();
@@ -23,38 +26,48 @@ pub async fn handle_wasm(api: PhylumApi, matches: &ArgMatches) -> CommandResult 
 
     wasmtime_wasi::add_to_linker(&mut linker, |data| &mut data.wasi)?;
 
-    let wasi = WasiCtxBuilder::new()
-        .inherit_stdio()
-        .inherit_args()?
-        .build();
-    let context = WasmContext { phylum: api, wasi };
+    let context = WasmContext::new(api)?;
     let mut store = Store::new(&engine, context);
 
     let instance = linker.instantiate(&mut store, &module)?;
 
     // Call function from WASM plugin.
-    let entry_point = instance
-        .get_func(&mut store, "entry-point")
-        .expect("`entry-point` was not an exported function");
-    entry_point.call_async(&mut store, &[], &mut []).await?;
+    let plugin = Plugin::new(&mut store, &instance, |data| &mut data.plugin)?;
+    plugin.entry_point(&mut store).await?;
 
     Ok(ExitCode::Ok.into())
 }
 
 pub struct WasmContext {
+    plugin: PluginData,
     phylum: PhylumApi,
     wasi: WasiCtx,
 }
 
-#[wit_bindgen_wasmtime::async_trait]
-impl phylum::Phylum for WasmContext {
-    async fn projects(&mut self) -> Vec<phylum::Project> {
-        let mut projects = self.phylum.get_projects().await.unwrap_or_default();
-        projects.drain(..).map(phylum::Project::from).collect()
+impl WasmContext {
+    fn new(phylum: PhylumApi) -> anyhow::Result<Self> {
+        let wasi = WasiCtxBuilder::new()
+            .inherit_stdio()
+            .inherit_args()?
+            .build();
+
+        Ok(Self {
+            plugin: PluginData::default(),
+            phylum,
+            wasi,
+        })
     }
 }
 
-impl From<ProjectSummaryResponse> for phylum::Project {
+#[wit_bindgen_wasmtime::async_trait]
+impl Phylum for WasmContext {
+    async fn projects(&mut self) -> Vec<Project> {
+        let mut projects = self.phylum.get_projects().await.unwrap_or_default();
+        projects.drain(..).map(Project::from).collect()
+    }
+}
+
+impl From<ProjectSummaryResponse> for Project {
     fn from(response: ProjectSummaryResponse) -> Self {
         Self {
             name: response.name,
