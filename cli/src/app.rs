@@ -121,6 +121,11 @@ pub fn app<'a>() -> clap::Command<'a> {
                 ])
         )
         .subcommand(
+            Command::new("deno")
+                .about("Execute a deno extension")
+                .arg(arg!(<file> "JavaScript/TypeScript file to be executed"))
+        )
+        .subcommand(
             Command::new("batch")
                 .hide(true)
                 .about("Submits a batch of requests to the processing system")
