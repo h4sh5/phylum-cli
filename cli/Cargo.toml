@@ -9,6 +9,7 @@ default = ["selfmanage"]
 phylum-online = []
 selfmanage = []
 extensions = []
+bindings-python = ["pyo3"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -60,6 +61,12 @@ unicode-width = "0.1.9"
 walkdir = "2.3.2"
 regex = "1.5.5"
 
+[dependencies.pyo3]
+version = "0.16.4"
+features = ["auto-initialize"]
+optional = true
+
 [dev-dependencies]
 assert_cmd = "2.0.4"
+indoc = "1.0.6"
 wiremock = "0.5.7"
