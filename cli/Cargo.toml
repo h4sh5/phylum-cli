@@ -57,6 +57,7 @@ zeroize = "1.4.0"
 zip = "0.6.2"
 unicode-width = "0.1.9"
 deno_core = "0.133.0"
+deno_ast = { version = "0.14.0", features = ["transpiling"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.4"

@@ -1,14 +1,17 @@
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::fs;
+use std::pin::Pin;
 use std::rc::Rc;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::ArgMatches;
 use deno_core::error::AnyError;
 use deno_core::{
-    op, Extension, FsModuleLoader, JsRuntime, ModuleSpecifier, OpState, RuntimeOptions,
+    op, Extension, JsRuntime, ModuleSource, ModuleSourceFuture, ModuleSpecifier, OpState,
+    RuntimeOptions, ModuleLoader, ModuleType
 };
+use deno_ast::{SourceTextInfo, MediaType, ParseParams};
 
 use crate::api::PhylumApi;
 use crate::commands::{CommandResult, ExitCode};
@@ -62,7 +65,7 @@ pub async fn handle_deno(api: PhylumApi, matches: &ArgMatches) -> CommandResult 
         .build();
 
     let mut runtime = JsRuntime::new(RuntimeOptions {
-        module_loader: Some(Rc::new(FsModuleLoader)),
+        module_loader: Some(Rc::new(TypescriptModuleLoader)),
         extensions: vec![extension],
         ..Default::default()
     });
@@ -81,11 +84,10 @@ pub async fn handle_deno(api: PhylumApi, matches: &ArgMatches) -> CommandResult 
     runtime.op_state().borrow_mut().put(api);
 
     // NOTE: This is how module loading would work instead of `execute_script`
-    // let specifier = ModuleSpecifier::parse("file:main.js")?;
-    // let module = runtime.load_main_module(&specifier, Some(exec)).await?;
-    // let _ = runtime.mod_evaluate(module);
+    let specifier = deno_core::resolve_path(exec_path)?;
+    let module = runtime.load_main_module(&specifier, None).await?;
+    let _ = runtime.mod_evaluate(module);
 
-    runtime.execute_script(exec_path, &exec)?;
     runtime.run_event_loop(false).await?;
 
     Ok(ExitCode::Ok.into())
@@ -94,3 +96,71 @@ pub async fn handle_deno(api: PhylumApi, matches: &ArgMatches) -> CommandResult 
 /// Wasm binary data.
 #[derive(Default, Clone)]
 struct WasmSource(Vec<u8>);
+
+/// Blatantly stolen from
+/// https://github.com/denoland/deno/blob/main/core/examples/ts_module_loader.rs.
+struct TypescriptModuleLoader;
+
+impl ModuleLoader for TypescriptModuleLoader {
+    fn resolve(
+        &self,
+        specifier: &str,
+        referrer: &str,
+        _is_main: bool,
+    ) -> Result<ModuleSpecifier> {
+        Ok(deno_core::resolve_import(specifier, referrer)?)
+    }
+
+    fn load(
+        &self,
+        module_specifier: &ModuleSpecifier,
+        _maybe_referrer: Option<ModuleSpecifier>,
+        _is_dyn_import: bool,
+    ) -> Pin<Box<ModuleSourceFuture>> {
+        let module_specifier = module_specifier.clone();
+        Box::pin(async move {
+            let path = module_specifier
+                .to_file_path()
+                .map_err(|_| anyhow!("Only file: URLs are supported."))?;
+
+            let media_type = MediaType::from(&path);
+            let (module_type, should_transpile) = match MediaType::from(&path) {
+                MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
+                    (ModuleType::JavaScript, false)
+                }
+                MediaType::Jsx => (ModuleType::JavaScript, true),
+                MediaType::TypeScript
+                | MediaType::Mts
+                | MediaType::Cts
+                | MediaType::Dts
+                | MediaType::Dmts
+                | MediaType::Dcts
+                | MediaType::Tsx => (ModuleType::JavaScript, true),
+                MediaType::Json => (ModuleType::Json, false),
+                _ => panic!("Unknown extension {:?}", path.extension()),
+            };
+
+            let code = std::fs::read_to_string(&path)?;
+            let code = if should_transpile {
+                let parsed = deno_ast::parse_module(ParseParams {
+                    specifier: module_specifier.to_string(),
+                    source: SourceTextInfo::from_string(code),
+                    media_type,
+                    capture_tokens: false,
+                    scope_analysis: false,
+                    maybe_syntax: None,
+                })?;
+                parsed.transpile(&Default::default())?.text
+            } else {
+                code
+            };
+            let module = ModuleSource {
+                code: code.into_bytes().into_boxed_slice(),
+                module_type,
+                module_url_specified: module_specifier.to_string(),
+                module_url_found: module_specifier.to_string(),
+            };
+            Ok(module)
+        })
+    }
+}
