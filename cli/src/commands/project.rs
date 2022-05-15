@@ -12,9 +12,11 @@ use crate::print_user_failure;
 use crate::print_user_success;
 use crate::prompt::prompt_threshold;
 
+use phylum_types::types::common::ProjectId;
+
 /// List the projects in this account.
-pub async fn get_project_list(api: &mut PhylumApi, pretty_print: bool) {
-    let resp = api.get_projects().await;
+pub async fn get_project_list(api: &mut PhylumApi, pretty_print: bool, group: Option<String>) {
+    let resp = api.get_projects(group).await;
 
     // Print table header when we're not outputting in JSON format.
     if pretty_print {
@@ -54,8 +56,9 @@ pub async fn handle_project(api: &mut PhylumApi, matches: &clap::ArgMatches) -> 
 
         print_user_success!("Successfully created new project, {}", name);
     } else if let Some(matches) = matches.subcommand_matches("list") {
+        let group = matches.value_of("group").map(String::from);
         let pretty_print = pretty_print && !matches.is_present("json");
-        get_project_list(api, pretty_print).await;
+        get_project_list(api, pretty_print, group).await;
     } else if let Some(matches) = matches.subcommand_matches("link") {
         let project_name = matches.value_of("name").unwrap();
         let group_name = matches.value_of("group");
@@ -63,8 +66,8 @@ pub async fn handle_project(api: &mut PhylumApi, matches: &clap::ArgMatches) -> 
         let resp = api.get_project_details(project_name).await;
 
         match resp {
-            Ok(proj) => {
-                let proj_uuid = Uuid::parse_str(proj.id.as_str()).unwrap(); // TODO: Handle this.
+			Ok(proj) => {
+                let proj_uuid = ProjectId::parse_str(proj.id.as_str()).unwrap(); // TODO: Handle this.
                 let proj_conf = ProjectConfig {
                     id: proj_uuid,
                     name: proj.name,
@@ -75,10 +78,15 @@ pub async fn handle_project(api: &mut PhylumApi, matches: &clap::ArgMatches) -> 
                     log::error!("Failed to save user credentials to config: {}", err)
                 });
 
-        print_user_success!(
-            "Linked the current working directory to the project {}.",
-            format!("{}", White.paint(proj_conf.name))
-        );
+                print_user_success!(
+                    "Linked the current working directory to the project {}.",
+                    format!("{}", White.paint(proj_conf.name))
+                );
+            }
+            Err(x) => {
+                return Err(anyhow!("A project with that name does not exist: {}", x));
+            }
+        }
     } else if let Some(matches) = matches.subcommand_matches("set-thresholds") {
         let mut project_name = matches.value_of("name").unwrap_or("current");
 
@@ -182,7 +190,7 @@ pub async fn handle_project(api: &mut PhylumApi, matches: &clap::ArgMatches) -> 
             }
         }
     } else {
-        get_project_list(api, pretty_print).await;
+        get_project_list(api, pretty_print, None).await;
     }
 
     Ok(ExitCode::Ok.into())

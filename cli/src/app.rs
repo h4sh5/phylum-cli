@@ -74,14 +74,17 @@ pub fn app<'a>() -> clap::Command<'a> {
                 .subcommand(
                     Command::new("list")
                         .about("List all existing projects")
-                        .arg(arg!(-j --json "Produce output in json format (default: false)"))
+                        .args(&[
+                            arg!(-j --json "Produce output in json format (default: false)"),
+                            arg!(-g --group <group_name> "Group to list projects for").required(false),
+                        ])
                 )
                 .subcommand(
                     Command::new("link")
                         .about("Link a repository to a project")
                         .args(&[
                             arg!(<name> "Name of the project"),
-                            arg!(-g --group <group_name> "Group owning the project"),
+                            arg!(-g --group <group_name> "Group owning the project").required(false),
                         ])
                 )
                 .subcommand(
@@ -134,6 +137,7 @@ pub fn app<'a>() -> clap::Command<'a> {
                     arg!(--filter <filter>).required(false).help(FILTER_ABOUT),
                     arg!(-j --json "Produce output in json format (default: false)"),
                     arg!(-p --project <project_name> "Project to use for analysis").required(false),
+                    arg!(-g --group <group_name> "Group to use for analysis").required(false),
                 ])
         )
         .subcommand(

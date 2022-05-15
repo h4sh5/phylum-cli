@@ -123,7 +123,7 @@ pub async fn handle_history(api: &mut PhylumApi, matches: &clap::ArgMatches) -> 
                 "`phylum history project` is deprecated, use `phylum project` instead"
             );
 
-            get_project_list(api, pretty_print).await;
+            get_project_list(api, pretty_print, None).await;
         }
     } else if matches.is_present("JOB_ID") {
         let job_id = resolve_job_id(matches.value_of("JOB_ID").expect("No job id found"))?;
@@ -165,6 +165,7 @@ pub async fn handle_submission(
     let mut pretty_print = false;
     let mut display_filter = None;
     let mut action = Action::None;
+    let mut group = None;
     let is_user; // is a user (non-batch) request
     let project;
     let label;
@@ -188,6 +189,7 @@ pub async fn handle_submission(
         display_filter = matches
             .value_of("filter")
             .and_then(|v| Filter::from_str(v).ok());
+        group = project_group(matches);
         is_user = !matches.is_present("force");
         synch = true;
     } else if let Some(matches) = matches.subcommand_matches("batch") {
@@ -250,6 +252,7 @@ pub async fn handle_submission(
             is_user,
             project,
             label.map(|s| s.to_string()),
+            group.map(|s| s.to_string())
         )
         .await?;
 
@@ -281,4 +284,20 @@ async fn project_uuid(api: &mut PhylumApi, matches: &clap::ArgMatches) -> Result
                 the `--project` flag, or create a new one with `phylum project create <name>`"
             )
         })
+}
+
+/// Get the current project's Group.
+///
+/// Assumes that the clap `matches` has a `group` arguments option.
+fn project_group(matches: &clap::ArgMatches) -> Option<String> {
+    // Prefer `--group` if it was specified.
+    if let Some(group_name) = matches.value_of("group") {
+        return Some(group_name.to_string());
+    }
+
+    // Retrieve the project from the `.phylum_project` file.
+    match get_current_project() {
+        Some(p) => p.group_name,
+        _ => None
+    }
 }

@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error as ThisError;
 
 mod endpoints;
-mod groups;
 
 use crate::auth::fetch_oidc_server_settings;
 use crate::auth::handle_auth_flow;
@@ -89,6 +88,14 @@ impl PhylumApi {
 
         if !success {
             return Err(anyhow!(body).into());
+        }
+		
+        let api_obj = serde_json::from_str::<APIResult<T>>(&body)
+            .map_err(|e| PhylumApiError::Other(e.into()))?;
+
+        match api_obj {
+            APIResult::Ok(api_obj) => Ok(api_obj),
+            APIResult::Err { msg } => Err(PhylumApiError::Other(anyhow::anyhow!(msg))),
         }
     }
 
@@ -211,9 +218,11 @@ impl PhylumApi {
     }
 
     /// Get a list of projects
-    pub async fn get_projects(&mut self) -> Result<Vec<ProjectSummaryResponse>> {
-        self.get(endpoints::get_project_summary(&self.api_uri))
-            .await
+    pub async fn get_projects(&mut self, group: Option<String>) -> Result<Vec<ProjectSummaryResponse>> {
+        match group {
+            Some(g) => self.get(endpoints::get_group_project_summary(&self.api_uri, &g)).await,
+            _ => self.get(endpoints::get_project_summary(&self.api_uri)).await
+        }
     }
 
     /// Get user settings
@@ -236,6 +245,7 @@ impl PhylumApi {
         is_user: bool,
         project: ProjectId,
         label: Option<String>,
+        group_name: Option<String>,
     ) -> Result<JobId> {
         let req = SubmitPackageRequest {
             package_type: req_type.to_owned(),
@@ -243,6 +253,7 @@ impl PhylumApi {
             is_user,
             project,
             label: label.unwrap_or_else(|| "uncategorized".to_string()),
+            group_name
         };
         log::debug!("==> Sending package submission: {:?}", req);
         let resp: SubmitPackageResponse = self
@@ -304,7 +315,7 @@ impl PhylumApi {
 
     /// Get all groups the user is part of.
     pub async fn get_groups_list(&mut self) -> Result<ListUserGroupsResponse> {
-        self.get(groups::list(&self.api_uri)).await
+        self.get(endpoints::group_list(&self.api_uri)).await
     }
 
     /// Get all groups the user is part of.
@@ -312,7 +323,7 @@ impl PhylumApi {
         let group = CreateGroupRequest {
             group_name: group_name.into(),
         };
-        self.post(groups::create(&self.api_uri), group).await
+        self.post(endpoints::group_create(&self.api_uri), group).await
     }
 }
 
