@@ -115,6 +115,8 @@ fn parse<P: Parseable>(path: &Path) -> Result<(Vec<PackageDescriptor>, PackageTy
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Context;
+
     use super::*;
 
     #[test]
@@ -122,6 +124,7 @@ mod tests {
         let test_cases = [
             ("tests/fixtures/Gemfile.lock", PackageType::RubyGems),
             ("tests/fixtures/yarn-v1.lock", PackageType::Npm),
+            ("tests/fixtures/yarn-v1.npm.lock", PackageType::Npm),
             ("tests/fixtures/yarn.lock", PackageType::Npm),
             ("tests/fixtures/package-lock.json", PackageType::Npm),
             ("tests/fixtures/sample.csproj", PackageType::Nuget),
@@ -134,7 +137,9 @@ mod tests {
         ];
 
         for (file, expected_type) in &test_cases {
-            let (_, pkg_type) = try_get_packages(Path::new(file)).unwrap();
+            let (_, pkg_type) = try_get_packages(Path::new(file))
+                .with_context(|| file.clone())
+                .unwrap();
             assert_eq!(pkg_type, *expected_type, "{}", file);
         }
     }

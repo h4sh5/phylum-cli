@@ -1210,6 +1210,7 @@ dependencies = [
  "histogram",
  "home",
  "hyper",
+ "indexmap",
  "lazy_static",
  "log",
  "maplit",

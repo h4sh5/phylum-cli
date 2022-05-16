@@ -1,15 +1,12 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_until},
-    character::{
-        complete::{line_ending, none_of, not_line_ending, space0},
-        streaming::multispace0,
-    },
+    character::complete::{line_ending, none_of, not_line_ending, space0},
     combinator::{eof, opt, recognize},
     error::{context, ParseError, VerboseError},
-    multi::{count, many1, many_till},
+    multi::{many1, many_till},
     sequence::{delimited, tuple},
-    AsChar, IResult,
+    IResult,
 };
 
 use phylum_types::types::package::{PackageDescriptor, PackageType};
