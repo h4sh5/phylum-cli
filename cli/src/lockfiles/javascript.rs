@@ -65,6 +65,16 @@ impl Parseable for PackageLock {
     }
 }
 
+fn is_v2_lock(yaml: &YamlValue) -> bool {
+    // v1 lockfiles are sometimes valid YAML, so check to see if it contains __metadata.
+    yaml.as_mapping()
+        .and_then(|map| {
+            map.iter()
+                .find(|(k, _v)| k.as_str().unwrap_or_default() == "__metadata")
+        })
+        .is_some()
+}
+
 impl Parseable for YarnLock {
     fn new(filename: &Path) -> Result<Self, io::Error>
     where
@@ -75,9 +85,9 @@ impl Parseable for YarnLock {
 
     /// Parses `yarn.lock` files into a vec of packages
     fn parse(&self) -> ParseResult {
-        let yaml_v2: YamlValue = match serde_yaml::from_str(&self.0) {
-            Ok(yaml) => yaml,
-            Err(_) => {
+        let yaml_v2: YamlValue = match serde_yaml::from_str::<YamlValue>(&self.0) {
+            Ok(yaml) if is_v2_lock(&yaml) => yaml,
+            _ => {
                 let data = self.0.as_str();
                 return yarn::parse(data).context("Failed to parse yarn lock file");
             }
@@ -211,6 +221,24 @@ mod tests {
         for expected_pkg in expected_pkgs {
             assert!(pkgs.contains(&expected_pkg));
         }
+    }
+
+    #[test]
+    fn lock_parse_yarn_v1_simple() {
+        // This file contains only one package and that package has no dependencies.
+        // This makes the file valid YAML according to serde_yaml.
+        // We need to make sure we don't take the v2 lockfile code path because this is not a v2
+        // lockfile and parsing it as one will produce incorrect results.
+        let parser = YarnLock::new(Path::new("tests/fixtures/yarn-v1.simple.lock")).unwrap();
+
+        assert_eq!(
+            parser.parse().unwrap(),
+            vec![PackageDescriptor {
+                name: "@yarnpkg/lockfile".to_string(),
+                version: "1.1.0".to_string(),
+                package_type: PackageType::Npm,
+            }]
+        );
     }
 
     #[test]
