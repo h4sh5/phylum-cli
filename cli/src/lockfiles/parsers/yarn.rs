@@ -115,13 +115,14 @@ impl<'a> Hash for YarnString<'a> {
 /// Get the line and column position of a [YarnString].
 fn get_position<'a>(input: &'a str, value: &YarnString<'a>) -> (usize, usize) {
     let offset = input.offset(value.0);
-    let (line_offset, line) = input[..offset]
+    let (line, line_start_offset) = input[..offset]
         .char_indices()
         .filter_map(|(i, c)| if c == '\n' { Some(i) } else { None })
         .enumerate()
+        .map(|(number_of_newlines, newline_offset)| (number_of_newlines + 1, newline_offset + 1))
         .last()
-        .unwrap_or((0, 0));
-    let column = input[line_offset..offset].chars().count();
+        .unwrap_or_default();
+    let column = input[line_start_offset..offset].chars().count();
     (line + 1, column + 1)
 }
 
@@ -433,5 +434,15 @@ mod test {
                 }
             ))
         );
+    }
+
+    #[test]
+    fn get_position_test() {
+        let text = "0123\n5678";
+        assert_eq!(get_position(text, &YarnString::from(&text[0..1])), (1, 1));
+        assert_eq!(get_position(text, &YarnString::from(&text[1..2])), (1, 2));
+        assert_eq!(get_position(text, &YarnString::from(&text[3..4])), (1, 4));
+        assert_eq!(get_position(text, &YarnString::from(&text[5..6])), (2, 1));
+        assert_eq!(get_position(text, &YarnString::from(&text[8..9])), (2, 4));
     }
 }
