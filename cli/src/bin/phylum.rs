@@ -173,15 +173,6 @@ async fn handle_commands() -> CommandResult {
         .await;
     }
 
-    let mut api = PhylumApi::new(
-        &mut config.auth_info,
-        &config.connection.uri,
-        timeout,
-        ignore_certs,
-    )
-    .await
-    .context("Error creating client")?;
-
     // PhylumApi may have had to log in, updating the auth info so we should save the config
     save_config(&config_path, &config).with_context(|| {
         format!(
@@ -190,29 +181,62 @@ async fn handle_commands() -> CommandResult {
         )
     })?;
 
-    if matches.subcommand_matches("ping").is_some() {
-        let resp = api.ping().await;
-        print_response(&resp, true, None);
-        return Ok(ExitCode::Ok.into());
-    }
-
-    let should_submit = matches.subcommand_matches("analyze").is_some()
-        || matches.subcommand_matches("batch").is_some();
+    let api = async {
+        PhylumApi::new(
+            &mut config.auth_info,
+            &config.connection.uri,
+            timeout,
+            ignore_certs,
+        )
+        .await
+        .context("Error creating client")
+    };
 
     // TODO: switch from if/else to non-exhaustive pattern match
-    if let Some(matches) = matches.subcommand_matches("project") {
-        handle_project(&mut api, matches).await?;
-    } else if let Some(matches) = matches.subcommand_matches("package") {
-        return handle_get_package(&mut api, &config.request_type, matches).await;
-    } else if should_submit {
-        return handle_submission(&mut api, config, &matches).await;
-    } else if let Some(matches) = matches.subcommand_matches("history") {
-        return handle_history(&mut api, matches).await;
-    } else if let Some(matches) = matches.subcommand_matches("group") {
-        return handle_group(&mut api, matches).await;
+    match matches.subcommand() {
+        Some(("ping", _)) => {
+            let resp = api.await?.ping().await;
+            print_response(&resp, true, None);
+            Ok(ExitCode::Ok.into())
+        }
+        Some(("project", matches)) => handle_project(&mut api.await?, matches).await,
+        Some(("package", matches)) => {
+            handle_get_package(&mut api.await?, &config.request_type, matches).await
+        }
+        Some(("history", matches)) => handle_submission(&mut api.await?, config, matches).await,
+        Some(("group", matches)) => handle_group(&mut api.await?, matches).await,
+        Some(("analyze", _)) | Some(("batch", _)) => {
+            handle_submission(&mut api.await?, config, &matches).await
+        }
+        Some((extension, matches)) => handle_run_extension(extension, matches).await,
+        None => unreachable!(),
     }
 
-    Ok(ExitCode::Ok.into())
+    // Drop this code after we have validated that the above match statement fulfills
+    // everything from the following lines.
+
+    // if matches.subcommand_matches("ping").is_some() {
+    //     let resp = api.ping().await;
+    //     print_response(&resp, true, None);
+    //     return Ok(ExitCode::Ok.into());
+    // }
+
+    // let should_submit = matches.subcommand_matches("analyze").is_some()
+    //     || matches.subcommand_matches("batch").is_some();
+    //
+    // if let Some(matches) = matches.subcommand_matches("project") {
+    //     handle_project(&mut api, matches).await?;
+    // } else if let Some(matches) = matches.subcommand_matches("package") {
+    //     return handle_get_package(&mut api, &config.request_type, matches).await;
+    // } else if should_submit {
+    //     return handle_submission(&mut api, config, &matches).await;
+    // } else if let Some(matches) = matches.subcommand_matches("history") {
+    //     return handle_history(&mut api, matches).await;
+    // } else if let Some(matches) = matches.subcommand_matches("group") {
+    //     return handle_group(&mut api, matches).await;
+    // }
+
+    // Ok(ExitCode::Ok.into())
 }
 
 #[tokio::main]

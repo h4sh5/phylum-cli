@@ -265,6 +265,34 @@ fn conflicting_extension_name_is_filtered() {
     assert!(output.contains("extension was filtered out"));
 }
 
+#[test]
+fn run_extension_outputs_something() {
+    let tmp_dir = TmpDir::new();
+
+    Command::cargo_bin("phylum")
+        .unwrap()
+        .env("XDG_DATA_HOME", &tmp_dir)
+        .arg("extension")
+        .arg("add")
+        .arg(fixtures_path().join("sample-extension"))
+        .assert()
+        .success();
+
+    let cmd = Command::cargo_bin("phylum")
+        .unwrap()
+        .env("XDG_DATA_HOME", &tmp_dir)
+        .arg("sample-extension")
+        .arg("--")
+        .arg("foo")
+        .arg("bar")
+        .arg("--baz")
+        .assert()
+        .success();
+
+    let output = std::str::from_utf8(&cmd.get_output().stdout).unwrap();
+    assert!(output.contains("sample-extension"));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Utilities
 ////////////////////////////////////////////////////////////////////////////////

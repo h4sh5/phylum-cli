@@ -55,7 +55,11 @@ pub fn add_extensions_subcommands(command: Command<'_>) -> Command<'_> {
             }
         })
         .fold(command, |command, ext| {
-            command.subcommand(Command::new(ext.name()))
+            command.subcommand(
+                Command::new(ext.name())
+                    .arg(arg!(<args> ... "arguments to the extension"))
+                    .trailing_var_arg(true),
+            )
         })
 }
 
@@ -103,6 +107,17 @@ async fn handle_list_extensions() -> CommandResult {
             println!("{:20}   {}", ext.name(), ext.description().unwrap_or(""));
         });
     }
+
+    Ok(CommandValue::Code(ExitCode::Ok))
+}
+
+/// Handle running an extension.
+pub async fn handle_run_extension(extension: &str, matches: &ArgMatches) -> CommandResult {
+    println!("{}", extension);
+    println!("{:?}", matches);
+
+    let ext = Extension::load(extension)?;
+    println!("{:?}", ext);
 
     Ok(CommandValue::Code(ExitCode::Ok))
 }
