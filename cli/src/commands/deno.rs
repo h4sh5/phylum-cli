@@ -4,14 +4,15 @@ use std::fs;
 use std::pin::Pin;
 use std::rc::Rc;
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use clap::ArgMatches;
+use deno_ast::{MediaType, ParseParams, SourceTextInfo};
 use deno_core::error::AnyError;
 use deno_core::{
-    op, Extension, JsRuntime, ModuleSource, ModuleSourceFuture, ModuleSpecifier, OpState,
-    RuntimeOptions, ModuleLoader, ModuleType
+    op, Extension, JsRuntime, ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier,
+    ModuleType, OpState, RuntimeOptions,
 };
-use deno_ast::{SourceTextInfo, MediaType, ParseParams};
+use serde::Serialize;
 
 use crate::api::PhylumApi;
 use crate::commands::{CommandResult, ExitCode};
@@ -33,13 +34,24 @@ async function load() {
 load();
 "#;
 
+#[derive(Serialize)]
+pub struct Project {
+    pub name: String,
+    pub number: u8,
+}
+
 #[op]
-pub async fn projects(state: Rc<RefCell<OpState>>) -> Result<Vec<String>, AnyError> {
+pub async fn projects(state: Rc<RefCell<OpState>>) -> Result<Vec<Project>, AnyError> {
     let mut state = state.borrow_mut();
     let api = state.borrow_mut::<PhylumApi>();
 
     let response = api.get_user_settings().await?;
-    let names = response.projects.keys().cloned().collect();
+    let names = response
+        .projects
+        .keys()
+        .cloned()
+        .map(|name| Project { name, number: 3 })
+        .collect();
 
     Ok(names)
 }
@@ -102,12 +114,7 @@ struct WasmSource(Vec<u8>);
 struct TypescriptModuleLoader;
 
 impl ModuleLoader for TypescriptModuleLoader {
-    fn resolve(
-        &self,
-        specifier: &str,
-        referrer: &str,
-        _is_main: bool,
-    ) -> Result<ModuleSpecifier> {
+    fn resolve(&self, specifier: &str, referrer: &str, _is_main: bool) -> Result<ModuleSpecifier> {
         Ok(deno_core::resolve_import(specifier, referrer)?)
     }
 
