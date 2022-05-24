@@ -114,8 +114,8 @@ impl Extension {
 
     /// Execute an extension subcommand.
     pub async fn run(&self) -> CommandResult {
-        let script_path = self.path.join(&self.manifest.entry_point);
-        let deno = DenoRuntime::new();
+        let entry_point = self.path.join(&self.manifest.entry_point);
+        let mut deno = DenoRuntime::new();
         deno.run(&entry_point.to_string_lossy()).await?;
         Ok(ExitCode::Ok.into())
     }
