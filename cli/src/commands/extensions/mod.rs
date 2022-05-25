@@ -75,7 +75,7 @@ pub async fn handle_extensions(matches: &ArgMatches) -> CommandResult {
 /// Add the extension from the specified path.
 async fn handle_add_extension(path: &str) -> CommandResult {
     // NOTE: Extension installation without slashes is reserved for the marketplace.
-    if !path.contains('/') {
+    if !path.contains('/') && !path.contains('\\') {
         return Err(anyhow!("Ambiguous extension URI '{}', use './{0}' instead", path));
     }
 
